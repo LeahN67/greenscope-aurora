@@ -3,6 +3,8 @@ pandas
 numpy
 plotly
 folium
+kaleido
+scikit-learn
 streamlit-folium
 reportlab
 Pillow
