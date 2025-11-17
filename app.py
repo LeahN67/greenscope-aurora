@@ -252,6 +252,7 @@ class EquityIntelligenceAI:
             score = 0
             carbon_score = min((row['NetCredits'] / df['NetCredits'].quantile(0.95)) * 40, 40)
             score += carbon_score
+
             gender_score = 0
             if row['WomenLed']:
                 gender_score += 12
@@ -260,6 +261,7 @@ class EquityIntelligenceAI:
             women_income_ratio = row['WomenIncomeShare'] / max(row['IncomeGenerated'], 1)
             gender_score += women_income_ratio * 8
             score += min(gender_score, 30)
+
             youth_score = 0
             if row['YouthInvolved']:
                 youth_score += 8
@@ -268,12 +270,15 @@ class EquityIntelligenceAI:
             youth_training_ratio = row['YouthTrained'] / max(row['TrainingProvided'], 1)
             youth_score += youth_training_ratio * 5
             score += min(youth_score, 20)
+
             beneficiary_ratio = (row['WomenBeneficiaries'] + row['YouthBeneficiaries']) / max(row['LocalCommunitySize'], 1)
             community_score = min(beneficiary_ratio * 100, 10)
             score += community_score
+
             if len(row['RedFlags']) > 0:
                 score *= (1 - len(row['RedFlags']) * 0.1)
             scores.append(min(score, 100))
+
         df['EquityExcellenceScore'] = scores
         return df
 
@@ -282,9 +287,11 @@ class EquityIntelligenceAI:
         high_carbon = df['NetCredits'] > df['NetCredits'].quantile(0.75)
         low_equity = df['EquityExcellenceScore'] < 60
         df.loc[high_carbon & low_equity, 'ImpactPotential'] = 'High Potential - Needs Social Focus'
+
         high_equity = df['EquityExcellenceScore'] > 75
         mid_carbon = df['NetCredits'] < df['NetCredits'].quantile(0.75)
         df.loc[high_equity & mid_carbon, 'ImpactPotential'] = 'Equity Leader - Scale Carbon'
+
         balanced = (df['EquityExcellenceScore'] > 75) & (df['NetCredits'] > df['NetCredits'].quantile(0.75))
         df.loc[balanced, 'ImpactPotential'] = '⭐ Balanced Excellence'
         return df
@@ -347,7 +354,10 @@ class VisualizationManager:
         if df.empty:
             return go.Figure().add_annotation(text="No data available", x=0.5, y=0.5, showarrow=False, font=dict(size=16, color="#64748b"))
         agg_df = df.groupby(['Region', 'Type'])['NetCredits'].sum().reset_index()
-        fig = px.bar(agg_df, x="Type", y="NetCredits", color="Type", facet_col="Region", facet_col_wrap=2, title="Net Carbon Credits by Project Type & Region", labels={"NetCredits": "Net Credits (tCO₂e)", "Type": "Project Type"}, color_discrete_map=Config.TYPE_COLORS, height=600)
+        fig = px.bar(agg_df, x="Type", y="NetCredits", color="Type", facet_col="Region", facet_col_wrap=2, 
+                     title="Net Carbon Credits by Project Type & Region", 
+                     labels={"NetCredits": "Net Credits (tCO₂e)", "Type": "Project Type"}, 
+                     color_discrete_map=Config.TYPE_COLORS, height=600)
         fig.update_traces(marker_line_width=0)
         fig.update_xaxes(tickangle=45, tickfont=dict(size=10))
         return VisualizationManager._apply_modern_theme(fig)
@@ -357,8 +367,11 @@ class VisualizationManager:
         if df.empty:
             return go.Figure()
         compliance_counts = df['ComplianceStandard'].value_counts()
-        fig = go.Figure(data=[go.Pie(labels=compliance_counts.index, values=compliance_counts.values, hole=0.5, marker=dict(colors=['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b']), textposition='outside', textinfo='label+percent')])
-        fig.update_layout(title="Compliance Standards Distribution", showlegend=False, annotations=[dict(text=f'{len(df)}<br>Projects', x=0.5, y=0.5, font_size=20, showarrow=False)])
+        fig = go.Figure(data=[go.Pie(labels=compliance_counts.index, values=compliance_counts.values, hole=0.5, 
+                                     marker=dict(colors=['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b']), 
+                                     textposition='outside', textinfo='label+percent')])
+        fig.update_layout(title="Compliance Standards Distribution", showlegend=False, 
+                          annotations=[dict(text=f'{len(df)}<br>Projects', x=0.5, y=0.5, font_size=20, showarrow=False)])
         return VisualizationManager._apply_modern_theme(fig)
 
     @staticmethod
@@ -368,7 +381,11 @@ class VisualizationManager:
         df_plot = df.copy()
         if len(df_plot) > max_points:
             df_plot = df_plot.sample(n=max_points, random_state=42)
-        fig = px.scatter(df_plot, x="AdditionalityScore", y="NetCredits", size="MarketValue", color="PermanenceRisk", hover_data=["ProjectID", "Type", "Region"], title="Risk Profile: Additionality vs. Net Credits", labels={"AdditionalityScore": "Additionality Score (%)", "NetCredits": "Net Credits (tCO₂e)"}, color_discrete_map=Config.RISK_COLORS, size_max=60)
+        fig = px.scatter(df_plot, x="AdditionalityScore", y="NetCredits", size="MarketValue", color="PermanenceRisk", 
+                         hover_data=["ProjectID", "Type", "Region"], 
+                         title="Risk Profile: Additionality vs. Net Credits", 
+                         labels={"AdditionalityScore": "Additionality Score (%)", "NetCredits": "Net Credits (tCO₂e)"}, 
+                         color_discrete_map=Config.RISK_COLORS, size_max=60)
         return VisualizationManager._apply_modern_theme(fig)
 
     @staticmethod
@@ -429,7 +446,7 @@ def render_social_impact_tab(df: pd.DataFrame):
         df_equity = ai_system.detect_social_impact_greenwashing(df_equity)
         df_equity = ai_system.calculate_equity_excellence_score(df_equity)
         df_equity = ai_system.predict_impact_potential(df_equity)
-    
+
     st.markdown("---")
     st.markdown("### 🚨 AI Alert Summary")
     alert_col1, alert_col2, alert_col3, alert_col4 = st.columns(4)
@@ -463,6 +480,7 @@ def render_social_impact_tab(df: pd.DataFrame):
                 for flag in row['RedFlags']:
                     st.error(flag)
                 st.info("💡 **Recommendation:** Request additional documentation on social impact claims before investment")
+
     st.markdown("---")
     st.markdown("### ⭐ AI-Identified Equity Champions")
     st.success("These projects demonstrate the highest combination of carbon impact and social equity")
@@ -495,7 +513,21 @@ def render_social_impact_tab(df: pd.DataFrame):
             with impact_col4:
                 st.metric("Local Income", f"${row['WomenIncomeShare']:,.0f}")
         with col2:
-            fig_gauge = go.Figure(go.Indicator(mode="gauge+number", value=row['EquityExcellenceScore'], domain={'x': [0, 1], 'y': [0, 1]}, gauge={'axis': {'range': [None, 100]}, 'bar': {'color': "#10b981"}, 'steps': [{'range': [0, 40], 'color': "#fee2e2"}, {'range': [40, 60], 'color': "#fef3c7"}, {'range': [60, 80], 'color': "#d1fae5"}, {'range': [80, 100], 'color': "#a7f3d0"}]}))
+            fig_gauge = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=row['EquityExcellenceScore'],
+                domain={'x': [0, 1], 'y': [0, 1]},
+                gauge={
+                    'axis': {'range': [None, 100]},
+                    'bar': {'color': "#10b981"},
+                    'steps': [
+                        {'range': [0, 40], 'color': "#fee2e2"},
+                        {'range': [40, 60], 'color': "#fef3c7"},
+                        {'range': [60, 80], 'color': "#d1fae5"},
+                        {'range': [80, 100], 'color': "#a7f3d0"}
+                    ]
+                }
+            ))
             fig_gauge.update_layout(height=200, margin=dict(l=20, r=20, t=20, b=20))
             st.plotly_chart(fig_gauge, use_container_width=True)
 
@@ -516,7 +548,7 @@ class ReportGenerator:
             story.append(Paragraph("GreenScope Analytics", title_style))
             story.append(Paragraph("<b>AI-Powered Social Impact & Climate Justice</b>", centered_style))
             story.append(Spacer(1, 24))
-            
+
             # Executive Summary
             story.append(Paragraph("<b>Executive Summary</b>", heading_style))
             story.append(Spacer(1, 8))
@@ -547,7 +579,7 @@ class ReportGenerator:
             ]))
             story.append(summary_table)
             story.append(Spacer(1, 24))
-            
+
             # Social Impact Summary
             if 'WomenBeneficiaries' in df.columns:
                 story.append(Paragraph("<b>Social Impact Summary</b>", heading_style))
@@ -578,7 +610,7 @@ class ReportGenerator:
                 ]))
                 story.append(impact_table)
                 story.append(Spacer(1, 24))
-            
+
             # ✅ CORRECT SDG SECTION
             story.append(Paragraph("<b>UN SDG Alignment</b>", heading_style))
             story.append(Spacer(1, 8))
@@ -603,7 +635,7 @@ class ReportGenerator:
             ]))
             story.append(sdg_table)
             story.append(Spacer(1, 24))
-            
+
             # Regional Distribution
             story.append(Paragraph("<b>Regional Distribution</b>", heading_style))
             story.append(Spacer(1, 8))
@@ -637,7 +669,7 @@ class ReportGenerator:
             ]))
             story.append(regional_table)
             story.append(Spacer(1, 24))
-            
+
             # Top 10 Projects
             story.append(Paragraph("<b>Top 10 Projects by Net Credits</b>", heading_style))
             story.append(Spacer(1, 10))
@@ -681,6 +713,7 @@ class ReportGenerator:
 # ------------------------------
 # Render Functions (ALL DEFINED)
 # ------------------------------
+
 def render_header():
     st.markdown("""
         <div class="main-header">
@@ -689,18 +722,60 @@ def render_header():
         </div>
     """, unsafe_allow_html=True)
 
+# ✅ NEW: About Banner Function
+def render_about_banner():
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);
+        border-radius: 16px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid #dbeafe;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    ">
+        <h3 style="color: #065f46; font-weight: 700; margin-top: 0;">🌱 What is GreenScope Analytics?</h3>
+        <p style="color: #1e293b; font-size: 1.05rem; line-height: 1.6; margin-bottom: 1rem;">
+            GreenScope is the world’s first <strong>equity-focused carbon intelligence platform</strong>—designed to transform climate finance from carbon counting to <strong>climate justice</strong>.
+        </p>
+        <p style="color: #1e293b; font-size: 1.05rem; line-height: 1.6;">
+            By fusing <strong>AI-driven social equity analysis</strong> with granular carbon data, GreenScope reveals not just how many credits a project generates—but <em>who benefits</em>. 
+            We spotlight <strong>women-led initiatives</strong>, <strong>youth engagement</strong>, and <strong>community co-benefits</strong> aligned with the UN Sustainable Development Goals (SDGs).
+        </p>
+        <div style="display: flex; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+            <span style="background: #dcfce7; color: #166534; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">AI + Equity</span>
+            <span style="background: #dbeafe; color: #1d4ed8; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">SDG-Aligned</span>
+            <span style="background: #fef3c7; color: #92400e; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">Climate Justice First</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 def render_advanced_filters():
     st.sidebar.markdown("## 🔍 Advanced Filters")
     with st.sidebar.expander("🌍 Geographic Filters", expanded=True):
-        regions = st.multiselect("Regions", sorted(st.session_state.df["Region"].unique()), default=sorted(st.session_state.df["Region"].unique()), key="region_filter")
+        regions = st.multiselect("Regions", sorted(st.session_state.df["Region"].unique()), 
+                                 default=sorted(st.session_state.df["Region"].unique()), key="region_filter")
     with st.sidebar.expander("🏷️ Project Filters", expanded=True):
-        types = st.multiselect("Project Types", sorted(st.session_state.df["Type"].unique()), default=sorted(st.session_state.df["Type"].unique()), key="type_filter")
-        statuses = st.multiselect("Verification Status", Config.VERIFICATION_STATUSES, default=Config.VERIFICATION_STATUSES, key="status_filter")
-        risks = st.multiselect("Permanence Risk", ["Low", "Medium", "High"], default=["Low", "Medium", "High"], key="risk_filter")
+        types = st.multiselect("Project Types", sorted(st.session_state.df["Type"].unique()), 
+                               default=sorted(st.session_state.df["Type"].unique()), key="type_filter")
+        statuses = st.multiselect("Verification Status", Config.VERIFICATION_STATUSES, 
+                                  default=Config.VERIFICATION_STATUSES, key="status_filter")
+        risks = st.multiselect("Permanence Risk", ["Low", "Medium", "High"], 
+                               default=["Low", "Medium", "High"], key="risk_filter")
     with st.sidebar.expander("📊 Metric Filters", expanded=True):
-        credit_range = st.slider("Net Credits (tCO₂e)", int(st.session_state.df["NetCredits"].min()), int(st.session_state.df["NetCredits"].max()), (int(st.session_state.df["NetCredits"].min()), int(st.session_state.df["NetCredits"].max())), key="credit_range")
-        additionality_range = st.slider("Additionality Score (%)", float(st.session_state.df["AdditionalityScore"].min()), 100.0, (float(st.session_state.df["AdditionalityScore"].min()), 100.0), key="additionality_range")
-        vintage_range = st.slider("Vintage Year", int(st.session_state.df["VintageYear"].min()), int(st.session_state.df["VintageYear"].max()), (int(st.session_state.df["VintageYear"].min()), int(st.session_state.df["VintageYear"].max())), key="vintage_range")
+        credit_range = st.slider("Net Credits (tCO₂e)", 
+                                 int(st.session_state.df["NetCredits"].min()), 
+                                 int(st.session_state.df["NetCredits"].max()), 
+                                 (int(st.session_state.df["NetCredits"].min()), int(st.session_state.df["NetCredits"].max())), 
+                                 key="credit_range")
+        additionality_range = st.slider("Additionality Score (%)", 
+                                        float(st.session_state.df["AdditionalityScore"].min()), 100.0, 
+                                        (float(st.session_state.df["AdditionalityScore"].min()), 100.0), 
+                                        key="additionality_range")
+        vintage_range = st.slider("Vintage Year", 
+                                  int(st.session_state.df["VintageYear"].min()), 
+                                  int(st.session_state.df["VintageYear"].max()), 
+                                  (int(st.session_state.df["VintageYear"].min()), int(st.session_state.df["VintageYear"].max())), 
+                                  key="vintage_range")
     return regions, types, statuses, risks, credit_range, additionality_range, vintage_range
 
 def render_dashboard_tab(df: pd.DataFrame):
@@ -718,7 +793,9 @@ def render_dashboard_tab(df: pd.DataFrame):
     with col2:
         st.markdown("#### Risk Distribution")
         risk_counts = df['PermanenceRisk'].value_counts()
-        fig = go.Figure(data=[go.Pie(labels=risk_counts.index, values=risk_counts.values, hole=0.6, marker=dict(colors=[Config.RISK_COLORS[risk] for risk in risk_counts.index]), textinfo='label+percent')])
+        fig = go.Figure(data=[go.Pie(labels=risk_counts.index, values=risk_counts.values, hole=0.6, 
+                                     marker=dict(colors=[Config.RISK_COLORS[risk] for risk in risk_counts.index]), 
+                                     textinfo='label+percent')])
         fig = VisualizationManager._apply_modern_theme(fig)
         fig.update_layout(showlegend=False, height=300, margin=dict(t=20, b=20))
         st.plotly_chart(fig, use_container_width=True)
@@ -748,7 +825,10 @@ def render_map_tab(df: pd.DataFrame):
     for _, row in df.iterrows():
         color = "green" if row["VerificationStatus"] == "Verified" else "orange"
         popup_html = VisualizationManager.create_enhanced_popup(row)
-        folium.Marker([row["Latitude"], row["Longitude"]], popup=folium.Popup(popup_html, max_width=300), tooltip=f"{row['ProjectID']} ({row['Type']})", icon=folium.Icon(color=color, icon="leaf", prefix="fa")).add_to(marker_cluster)
+        folium.Marker([row["Latitude"], row["Longitude"]], 
+                      popup=folium.Popup(popup_html, max_width=300), 
+                      tooltip=f"{row['ProjectID']} ({row['Type']})", 
+                      icon=folium.Icon(color=color, icon="leaf", prefix="fa")).add_to(marker_cluster)
     st_folium(m, width="100%", height=600)
 
 def render_compare_tab(df: pd.DataFrame):
@@ -814,12 +894,15 @@ def render_report_tab(df: pd.DataFrame):
     with col2:
         st.markdown("#### Quick Export")
         csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download CSV Data", data=csv, file_name=f"greenscope_data_{datetime.now().strftime('%Y%m%d')}.csv", mime="text/csv", use_container_width=True)
+        st.download_button("📥 Download CSV Data", data=csv, file_name=f"greenscope_data_{datetime.now().strftime('%Y%m%d')}.csv", 
+                           mime="text/csv", use_container_width=True)
         excel_buffer = io.BytesIO()
         with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='Projects', index=False)
         excel_buffer.seek(0)
-        st.download_button("📊 Download Excel Report", data=excel_buffer, file_name=f"greenscope_report_{datetime.now().strftime('%Y%m%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+        st.download_button("📊 Download Excel Report", data=excel_buffer, 
+                           file_name=f"greenscope_report_{datetime.now().strftime('%Y%m%d')}.xlsx", 
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
     st.markdown("---")
     st.markdown("#### 📄 Generate Branded PDF Report")
     if st.button("🎨 Generate Professional PDF", type="primary", use_container_width=True):
@@ -828,7 +911,9 @@ def render_report_tab(df: pd.DataFrame):
                 pdf_bytes = ReportGenerator.generate_pdf(df)
                 if pdf_bytes:
                     st.success("✅ Report generated successfully!")
-                    st.download_button("📥 Download PDF Report", data=pdf_bytes, file_name=f"GreenScope_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", mime="application/pdf", use_container_width=True)
+                    st.download_button("📥 Download PDF Report", data=pdf_bytes, 
+                                       file_name=f"GreenScope_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf", 
+                                       mime="application/pdf", use_container_width=True)
                 else:
                     st.error("❌ Failed to generate report. Please check the logs.")
             except Exception as e:
@@ -839,9 +924,12 @@ def render_report_tab(df: pd.DataFrame):
 # Main Application
 # ------------------------------
 def main():
-    st.set_page_config(page_title="GreenScope Analytics | Climate Intelligence Platform", page_icon="🌍", layout="wide", initial_sidebar_state="expanded")
+    st.set_page_config(page_title="GreenScope Analytics | Climate Intelligence Platform", 
+                       page_icon="🌍", layout="wide", initial_sidebar_state="expanded")
     inject_custom_css()
     render_header()
+    render_about_banner()  # ✅ INSERTED HERE — BEFORE TABS
+    
     st.sidebar.markdown("## ⚙️ Configuration")
     with st.sidebar.expander("🔧 Data Settings", expanded=False):
         fixed_dataset = st.checkbox("Use Fixed Dataset (seed=42)", value=True)
@@ -849,11 +937,13 @@ def main():
         if st.button("🔄 Regenerate Data"):
             st.session_state.pop('df', None)
             st.rerun()
+
     if 'df' not in st.session_state:
         with st.spinner("📄 Loading portfolio data..."):
             seed = 42 if fixed_dataset else None
             st.session_state.df = CarbonProjectDataManager.generate_realistic_carbon_projects(n_projects=n_projects, seed=seed)
             st.session_state.df = generate_impact_data(st.session_state.df)
+
     df = st.session_state.df
     validation = CarbonProjectDataManager.validate_dataframe(df)
     if not validation["valid"]:
@@ -861,17 +951,22 @@ def main():
         for issue in validation["issues"]:
             st.error(f"- {issue}")
         return
+
     regions, types, statuses, risks, credit_range, additionality_range, vintage_range = render_advanced_filters()
+
     if st.sidebar.button("🔄 Reset All Filters", use_container_width=True):
         for key in list(st.session_state.keys()):
             if 'filter' in key or 'range' in key:
                 del st.session_state[key]
         st.rerun()
+
     filtered_df = apply_filters(df, regions, types, statuses, risks, credit_range, additionality_range, vintage_range)
+
     st.sidebar.markdown("---")
     st.sidebar.markdown(f"### 📊 Filtered Results")
     st.sidebar.metric("Projects Shown", f"{len(filtered_df):,}")
     st.sidebar.metric("Total Credits", f"{filtered_df['NetCredits'].sum():,.0f}")
+
     if len(filtered_df) == 0:
         st.warning("⚠️ No projects match your current filters. Please adjust your criteria.")
         return
@@ -933,6 +1028,7 @@ def main():
             st.caption(f"Showing {len(display_df)} of {len(filtered_df)} projects")
         else:
             st.info("Please select at least one column to display")
+
     st.markdown("---")
     st.markdown(f"""
         <div class="footer">
